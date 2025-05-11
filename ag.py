@@ -30,7 +30,7 @@ def cli(ctx, model, temperature):
 
     ctx.obj.update({
         'client': OpenAI(
-            base_url='https://api.openai-proxy.org/v1',
+            base_url='https://api.openai.com/v1',
             api_key=api_key  # 使用环境变量中的密钥
         ),
         'model': model,
