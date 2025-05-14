@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-import os  # 新增导入 os 模块
+import os
 import click
 from openai import OpenAI
 from typing import List, Dict
@@ -10,6 +10,8 @@ import io
 from cli_file_picker import CLIFilePicker
 import mimetypes
 
+APP_NAME = "AGenius Chat 🚀"
+
 @click.group()
 @click.option('--model', default='gpt-4o-mini', show_default=True,
               help='选择语言模型 (deepseek/gpt-4o-mini)')
@@ -18,6 +20,14 @@ import mimetypes
 @click.pass_context
 def cli(ctx, model, temperature):
     """\b
+    █████╗  ██████╗ ███████╗██╗   ██╗██╗███╗   ██╗██╗   ██╗
+    ██╔══██╗██╔════╝ ██╔════╝██║   ██║██║████╗  ██║╚██╗ ██╔╝
+    ███████║██║  ███╗█████╗  ██║   ██║██║██╔██╗ ██║ ╚████╔╝ 
+    ██╔══██║██║   ██║██╔══╝  ╚██╗ ██╔╝██║██║╚██╗██║  ╚██╔╝  
+    ██║  ██║╚██████╔╝███████╗ ╚████╔╝ ██║██║ ╚████║   ██║   
+    ╚═╝  ╚═╝ ╚═════╝ ╚══════╝  ╚═══╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   
+    AGenius Chat - 智能对话助理，开启你的AI探索之旅！
+    ------------------------------------------------------
     OpenAI多轮对话CLI工具
     支持持续对话上下文记忆
     支持管道输入
@@ -27,13 +37,13 @@ def cli(ctx, model, temperature):
     # 从环境变量中加载 API 密钥
     api_key = os.getenv('OPENAI_API_KEY')
     if not api_key:
-        click.secho("错误: 未找到环境变量 'OPENAI_API_KEY'，请设置您的 API 密钥！", fg='red', err=True)
+        click.secho("❌ 错误: 未找到环境变量 'OPENAI_API_KEY'，请设置您的 API 密钥！", fg='red', err=True)
         raise click.Abort()
 
     ctx.obj.update({
         'client': OpenAI(
             base_url='https://api.openai-proxy.org/v1',
-            api_key=api_key  # 使用环境变量中的密钥
+            api_key=api_key
         ),
         'model': model,
         'temperature': temperature,
@@ -68,17 +78,18 @@ def chat(ctx, question):
                 temperature=config['temperature']
             )
             ai_reply = response.choices[0].message.content
-            click.secho(f"AI => {ai_reply}", fg='blue')
+            click.secho(f"🤖 AI => {ai_reply}", fg='blue')
         except Exception as e:
-            click.secho(f"错误: {str(e)}", fg='red', err=True)
+            click.secho(f"❌ 错误: {str(e)}", fg='red', err=True)
         return
 
-    click.secho("已进入对话模式（输入 q 退出）", fg='green')
+    click.secho("✨ 已进入对话模式（输入 q 退出）", fg='green')
 
     while True:
         try:
-            user_input = click.prompt('You', type=str, prompt_suffix=' => ')
+            user_input = click.prompt('🧑 You', type=str, prompt_suffix=' => ')
             if user_input.lower() in ('q', 'quit'):
+                click.secho("👋 再见，期待下次与你畅聊！", fg='magenta')
                 break
 
             # 更新对话历史
@@ -94,17 +105,15 @@ def chat(ctx, question):
             
             # 处理响应
             ai_reply = response.choices[0].message.content
-            click.secho(f"AI => {ai_reply}", fg='blue')
-            
-            # 更新助手回复
+            click.secho(f"🤖 AI => {ai_reply}", fg='blue')
             config['history'] = _update_history(
                 config['history'], "assistant", ai_reply)
 
         except KeyboardInterrupt:
-            click.secho("\n对话已终止", fg='red')
+            click.secho("\n🛑 对话已终止", fg='red')
             break
         except Exception as e:
-            click.secho(f"错误: {str(e)}", fg='red', err=True)
+            click.secho(f"❌ 错误: {str(e)}", fg='red', err=True)
             raise click.Abort()
 
 @cli.command()
@@ -115,7 +124,7 @@ def process_image(ctx, image):
     config = ctx.obj
 
     if not image:
-        click.secho("请提供图片路径！", fg='red', err=True)
+        click.secho("⚠️ 请提供图片路径！", fg='red', err=True)
         return
 
     try:
@@ -140,10 +149,10 @@ def process_image(ctx, image):
 
         # 处理响应
         ai_reply = response.choices[0].message.content
-        click.secho(f"AI => {ai_reply}", fg='blue')
+        click.secho(f"🖼️ AI => {ai_reply}", fg='blue')
 
     except Exception as e:
-        click.secho(f"处理图片时出错: {str(e)}", fg='red', err=True)
+        click.secho(f"❌ 处理图片时出错: {str(e)}", fg='red', err=True)
 
 @cli.command()
 @click.option('-q', '--question', default=None, help='输入问题，支持@选择文件')
@@ -175,7 +184,7 @@ def smart_chat(ctx, question):
                 # 先把图片消息加入history
                 config['history'] = _update_history(config['history'], "user", image_prompt)
             except Exception as e:
-                click.secho(f"处理图片时出错: {str(e)}", fg='red', err=True)
+                click.secho(f"❌ 处理图片时出错: {str(e)}", fg='red', err=True)
                 return
         else:
             # 代码或文本
@@ -193,12 +202,13 @@ def smart_chat(ctx, question):
                 temperature=config['temperature']
             )
             ai_reply = response.choices[0].message.content
-            click.secho(f"AI => {ai_reply}", fg='blue')
+            click.secho(f"🤖 AI => {ai_reply}", fg='blue')
         except Exception as e:
-            click.secho(f"错误: {str(e)}", fg='red', err=True)
+            click.secho(f"❌ 错误: {str(e)}", fg='red', err=True)
         return
     else:
-        click.secho("请输入包含@的提示词", fg='yellow')
+        click.secho("⚡ 请输入包含@的提示词", fg='yellow')
 
 if __name__ == '__main__':
+    click.secho(f"欢迎使用 {APP_NAME}！", fg='cyan')
     cli(obj={})
