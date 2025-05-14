@@ -160,16 +160,29 @@ def smart_chat(ctx, question):
         file_path = picker.pick_path()
         mime, _ = mimetypes.guess_type(file_path)
         if mime and mime.startswith('image'):
-            # 图片转base64
-            with open(file_path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode('utf-8')
-            insert_content = f"[图片base64]: {b64[:100]}...（已截断）"
+            # 使用 process_image 的图片处理逻辑
+            try:
+                with open(file_path, "rb") as img_file:
+                    img_data = img_file.read()
+                    encoded_image = base64.b64encode(img_data).decode('utf-8')
+                # 构造请求消息，包含图片的 Base64 数据
+                image_prompt = [
+                    {"type": "text", "text": "描述这张图片"},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}}
+                ]
+                # 用图片消息替换@
+                question = question.replace('@', '[图片已插入，AI将描述图片内容]', 1)
+                # 先把图片消息加入history
+                config['history'] = _update_history(config['history'], "user", image_prompt)
+            except Exception as e:
+                click.secho(f"处理图片时出错: {str(e)}", fg='red', err=True)
+                return
         else:
             # 代码或文本
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 code = f.read()
             insert_content = f"[文件内容]:\n{code[:1000]}...（已截断）"
-        question = question.replace('@', insert_content, 1)
+            question = question.replace('@', insert_content, 1)
 
     if question:
         config['history'] = _update_history(config['history'], "user", question)
