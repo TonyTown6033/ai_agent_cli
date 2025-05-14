@@ -7,6 +7,8 @@ from typing import List, Dict
 import base64
 from PIL import Image
 import io
+from cli_file_picker import CLIFilePicker
+import mimetypes
 
 @click.group()
 @click.option('--model', default='gpt-4o-mini', show_default=True,
@@ -30,7 +32,7 @@ def cli(ctx, model, temperature):
 
     ctx.obj.update({
         'client': OpenAI(
-            base_url='https://api.openai.com/v1',
+            base_url='https://api.openai-proxy.org/v1',
             api_key=api_key  # 使用环境变量中的密钥
         ),
         'model': model,
@@ -142,6 +144,48 @@ def process_image(ctx, image):
 
     except Exception as e:
         click.secho(f"处理图片时出错: {str(e)}", fg='red', err=True)
+
+@cli.command()
+@click.option('-q', '--question', default=None, help='输入问题，支持@选择文件')
+@click.pass_context
+def smart_chat(ctx, question):
+    """支持@文件选择的智能对话"""
+    config = ctx.obj
+    system_prompt = {"role": "system", "content": "你是有问必答的智能助手, 使用中文回答问题"}
+    config['history'] = _update_history(config['history'], **system_prompt)
+
+    # 检查@，并处理文件插入
+    if question and '@' in question:
+        picker = CLIFilePicker()
+        file_path = picker.pick_path()
+        mime, _ = mimetypes.guess_type(file_path)
+        if mime and mime.startswith('image'):
+            # 图片转base64
+            with open(file_path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode('utf-8')
+            insert_content = f"[图片base64]: {b64[:100]}...（已截断）"
+        else:
+            # 代码或文本
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                code = f.read()
+            insert_content = f"[文件内容]:\n{code[:1000]}...（已截断）"
+        question = question.replace('@', insert_content, 1)
+
+    if question:
+        config['history'] = _update_history(config['history'], "user", question)
+        try:
+            response = config['client'].chat.completions.create(
+                messages=config['history'],
+                model=config['model'],
+                temperature=config['temperature']
+            )
+            ai_reply = response.choices[0].message.content
+            click.secho(f"AI => {ai_reply}", fg='blue')
+        except Exception as e:
+            click.secho(f"错误: {str(e)}", fg='red', err=True)
+        return
+    else:
+        click.secho("请输入包含@的提示词", fg='yellow')
 
 if __name__ == '__main__':
     cli(obj={})
